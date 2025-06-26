@@ -4,7 +4,7 @@ import pandas as pd
 from pymongo import MongoClient
 
 # MongoDB setup
-MONGO_URI = "mongodb+srv://chatterjeesubhodeep08:7gvvDtr85ZTNDrUT@cluster0.5epkxy5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+MONGO_URI =""
 client = MongoClient(MONGO_URI)
 db = client["comment_tracker"]
 users_col = db["users"]
