@@ -9,34 +9,17 @@ client = MongoClient(MONGO_URI)
 db = client["comment_tracker"]
 users_col = db["users"]
 
-# Tier system
-TIER_MILESTONES = [
-    (1, "🔥 Initiate"),
-    (3, "✨ Spark"),
-    (7, "🔍 Seeker"),
-    (14, "🧘‍♂️ Sadhak"),
-    (21, "🌟 Disciple"),
-    (30, "🙏 Devotee"),
-    (60, "👑 Leader"),
-    (90, "🏅 Acharya")
-]
-
-def get_tier(streak):
-    for days, tier in reversed(TIER_MILESTONES):
-        if streak >= days:
-            return tier
-    return "🌱 New"
-
 # Fetch all usernames
 usernames = [u["name"] for u in users_col.find({}, {"name": 1})]
 
 st.title("🔥 Knowledge Streak Tracker")
 
-# Login
+# Login with dropdown + text input
 st.header("🔑 Login / Register")
 user_name = st.selectbox("Select your name", [""] + usernames)
 custom_name = st.text_input("Or enter a new name")
 
+# Use new name if typed
 if custom_name.strip():
     user_name = custom_name.strip()
 
@@ -55,7 +38,8 @@ if submit and user_name:
         }
         users_col.insert_one(user_data)
 
-    last = user_data['last_commented']
+    # Fix datetime
+    last = user_data.get('last_commented')
     if last and isinstance(last, datetime.date) and not isinstance(last, datetime.datetime):
         last = datetime.datetime.combine(last, datetime.time.min)
 
@@ -69,7 +53,7 @@ if submit and user_name:
     st.session_state.user_data = user_data
     st.success(f"Jai Gurudev, {user_name}! 🙏")
 
-# Logged-in experience
+# Logged-in view
 if "user_name" in st.session_state:
     user_name = st.session_state.user_name
     user_data = st.session_state.user_data
@@ -77,7 +61,7 @@ if "user_name" in st.session_state:
 
     st.header("📌 Log Today’s Comment")
 
-    last = user_data["last_commented"]
+    last = user_data.get("last_commented")
     if last and isinstance(last, datetime.date) and not isinstance(last, datetime.datetime):
         last = datetime.datetime.combine(last, datetime.time.min)
 
@@ -88,61 +72,66 @@ if "user_name" in st.session_state:
             st.info("🕒 You've already logged a comment in the last 7 hours!")
             can_comment = False
         elif elapsed > 32:
-            user_data["streak"] = 0
             st.warning("⛔️ Streak broken after 32 hours.")
+            user_data['streak'] = 0
             can_comment = True
 
-    if can_comment:
-        if st.button("✅ Yes, I commented now!"):
-            user_data["streak"] = user_data["streak"] + 1 if last and elapsed <= 32 else 1
-            user_data["total_days"] += 1
-            user_data["last_commented"] = now
+    if can_comment and st.button("✅ Yes, I commented now!"):
+        user_data['streak'] = user_data['streak'] + 1 if last and elapsed <= 32 else 1
+        user_data['total_days'] += 1
+        user_data['last_commented'] = now
 
-            users_col.update_one(
-                {"name": user_name},
-                {"$set": {
-                    "streak": user_data["streak"],
-                    "total_days": user_data["total_days"],
-                    "last_commented": now
-                }}
-            )
-            st.success("🎉 Comment logged successfully!")
+        users_col.update_one(
+            {"name": user_name},
+            {"$set": {
+                "streak": user_data['streak'],
+                "total_days": user_data['total_days'],
+                "last_commented": user_data['last_commented']
+            }}
+        )
+        st.success("🎉 Comment logged successfully!")
 
-    # 🎯 Progress section
-    streak = user_data["streak"]
-    tier = get_tier(streak)
+    # Progress Display
+    st.subheader("🔥 Your Streak Progress")
+    streak = user_data.get("streak", 0)
+    st.metric("Current Streak", f"{streak} day(s)")
 
-    st.subheader(f"🏅 Current Tier: **{tier}**")
-    st.metric("🔥 Current Streak", f"{streak} day(s)")
+    # Tiers
+    milestones = [
+        (1, "🔰 Seeker"),
+        (7, "🔥 Sadhak"),
+        (21, "🌟 Yogi"),
+        (45, "🧘‍♂️ Sevak"),
+        (90, "🏅 Acharya"),
+    ]
 
-    # 🧭 Show next tier progress
-    next_tier = None
-    for milestone in TIER_MILESTONES:
-        if streak < milestone[0]:
-            next_tier = milestone
-            break
+    next_tier = next(((days, label) for days, label in milestones if streak < days), None)
 
     if next_tier:
         next_days, next_label = next_tier
         days_remaining = next_days - streak
         progress = streak / next_days
-        st.progress(progress, text=f"{streak}/{next_days} — only {days_remaining} day(s) to reach {next_label}!")
+        st.progress(progress, text=f"{streak}/{next_days} — {days_remaining} day(s) to {next_label}")
+
+        if next_label == "🏅 Acharya":
+            st.info("🎁 A surprise awaits you when you reach the Acharya level! 30 days Stay consistent 🙌")
     else:
-        # Already Acharya
         st.balloons()
         st.success("💥 You've reached the final tier — Acharya! Keep shining!")
+        st.markdown("🎉 **You’ve unlocked the surprise! Check your inbox or await a special message soon!** ✨")
 
-    # 💡 Motivation
+    # Motivation
     st.subheader("🌱 Why Keep Commenting?")
     st.markdown("""
     - 🧘 Stay immersed in knowledge  
     - ✨ Show up daily to build your presence  
-    - 🏅 Unlock new tiers and get honoured every 3 months  
-    - 🔥 Keep the flame of knowledge burning  
+    - 🏅 Earn honours every 3 months  
+    - 🎁 Surprise awaits at Acharya level  
+    - 🔥 Ride the adrenaline rush of a burning streak  
     """)
     st.info("“As Gurudev always says — Be busy in spreading knowledge. Day and night think of how you can reach out to people, and do some good work in life.”")
 
-    # 🏆 Leaderboard
+    # Leaderboard
     st.subheader("🏆 Top Streaks")
     leaderboard = list(users_col.find({}, {"_id": 0}))
     leaderboard = sorted(leaderboard, key=lambda x: x['streak'], reverse=True)
