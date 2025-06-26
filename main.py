@@ -4,7 +4,7 @@ import pandas as pd
 from pymongo import MongoClient
 
 # MongoDB setup
-MONGO_URI = st.secrets["url"]
+MONGO_URI = "mongodb+srv://chatterjeesubhodeep08:7gvvDtr85ZTNDrUT@cluster0.5epkxy5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(MONGO_URI)
 db = client["comment_tracker"]
 users_col = db["users"]
@@ -127,4 +127,3 @@ if "user_name" in st.session_state:
     df = pd.DataFrame(leaderboard)[["name", "streak", "total_days"]]
     df.columns = ["Name", "Streak", "Total Days"]
     st.table(df.head(5))
-
