@@ -53,7 +53,7 @@ if submit and user_name:
     # Store in session
     st.session_state.user_name = user_name
     st.session_state.user_data = user_data
-    st.success(f"Welcome, {user_name}! 🙏")
+    st.success(f"Jai Gurudev, {user_name}! 🙏")
 
 # Logged-in user interface
 if "user_name" in st.session_state:
