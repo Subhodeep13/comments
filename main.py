@@ -129,7 +129,7 @@ if "user_name" in st.session_state:
     - 🏅 Earn visual rewards as you grow  
     - 🎯 Acharya badge unlocks a special surprise  
     """)
-    st.info("“As Gurudev always says — Keep spreading knowledge. Let that be your tapasya.”")
+    st.info("“As Gurudev always says — Be busy in spreading knowledge. Day and night think of how you can reach out to people, and do some good work in life”")
 
     # Leaderboard
     st.subheader("🏆 Top 5 Streak Holders")
