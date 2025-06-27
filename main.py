@@ -9,17 +9,16 @@ client = MongoClient(MONGO_URI)
 db = client["comment_tracker"]
 users_col = db["users"]
 
-# Fetch all usernames
+# Fetch usernames
 usernames = [u["name"] for u in users_col.find({}, {"name": 1})]
 
 st.title("🔥 Knowledge Streak Tracker")
 
-# Login with dropdown + text input
+# Login
 st.header("🔑 Login / Register")
 user_name = st.selectbox("Select your name", [""] + usernames)
 custom_name = st.text_input("Or enter a new name")
 
-# Use new name if typed
 if custom_name.strip():
     user_name = custom_name.strip()
 
@@ -27,8 +26,8 @@ submit = st.button("Login")
 
 if submit and user_name:
     now = datetime.datetime.now()
-
     user_data = users_col.find_one({"name": user_name})
+
     if not user_data:
         user_data = {
             "name": user_name,
@@ -38,8 +37,8 @@ if submit and user_name:
         }
         users_col.insert_one(user_data)
 
-    # Fix datetime
-    last = user_data.get('last_commented')
+    # Fix date type
+    last = user_data["last_commented"]
     if last and isinstance(last, datetime.date) and not isinstance(last, datetime.datetime):
         last = datetime.datetime.combine(last, datetime.time.min)
 
@@ -47,13 +46,13 @@ if submit and user_name:
         elapsed = (now - last).total_seconds() / 3600
         if elapsed > 32:
             user_data["streak"] = 0
-            st.warning("⛔️ Streak reset — more than 32 hours since last comment.")
+            st.warning("⚠️ Streak broken! More than 32 hours since last comment.")
 
     st.session_state.user_name = user_name
     st.session_state.user_data = user_data
     st.success(f"Jai Gurudev, {user_name}! 🙏")
 
-# Logged-in view
+# Logged in UI
 if "user_name" in st.session_state:
     user_name = st.session_state.user_name
     user_data = st.session_state.user_data
@@ -61,7 +60,7 @@ if "user_name" in st.session_state:
 
     st.header("📌 Log Today’s Comment")
 
-    last = user_data.get("last_commented")
+    last = user_data["last_commented"]
     if last and isinstance(last, datetime.date) and not isinstance(last, datetime.datetime):
         last = datetime.datetime.combine(last, datetime.time.min)
 
@@ -69,70 +68,71 @@ if "user_name" in st.session_state:
     if last:
         elapsed = (now - last).total_seconds() / 3600
         if elapsed < 7:
-            st.info("🕒 You've already logged a comment in the last 7 hours!")
+            st.info("🕒 You already logged a comment in the last 7 hours!")
             can_comment = False
         elif elapsed > 32:
             st.warning("⛔️ Streak broken after 32 hours.")
-            user_data['streak'] = 0
-            can_comment = True
+            user_data["streak"] = 0
 
-    if can_comment and st.button("✅ Yes, I commented now!"):
-        user_data['streak'] = user_data['streak'] + 1 if last and elapsed <= 32 else 1
-        user_data['total_days'] += 1
-        user_data['last_commented'] = now
+    if can_comment:
+        if st.button("✅ Yes, I commented now!"):
+            user_data["streak"] = user_data["streak"] + 1 if last and elapsed <= 32 else 1
+            user_data["total_days"] += 1
+            user_data["last_commented"] = now
 
-        users_col.update_one(
-            {"name": user_name},
-            {"$set": {
-                "streak": user_data['streak'],
-                "total_days": user_data['total_days'],
-                "last_commented": user_data['last_commented']
-            }}
-        )
-        st.success("🎉 Comment logged successfully!")
+            users_col.update_one(
+                {"name": user_name},
+                {"$set": {
+                    "streak": user_data["streak"],
+                    "total_days": user_data["total_days"],
+                    "last_commented": user_data["last_commented"]
+                }}
+            )
 
-    # Progress Display
+            st.success("🎉 Comment logged successfully!")
+
+    # Progress
+    streak = user_data["streak"]
     st.subheader("🔥 Your Streak Progress")
-    streak = user_data.get("streak", 0)
     st.metric("Current Streak", f"{streak} day(s)")
+    st.progress(min(streak / 60, 1.0), text=f"{streak}/60 Days")
 
-    # Tiers
+    # Badges
+    st.subheader("🎖️ Your Badges")
     milestones = [
         (1, "🔰 Seeker"),
-        (7, "🔥 Sadhak"),
-        (21, "🌟 Yogi"),
-        (45, "🧘‍♂️ Sevak"),
-        (90, "🏅 Acharya"),
+        (5, "💪 Consistent"),
+        (15, "⚔️ Warrior"),
+        (30, "🙏 Devotee"),
+        (45, "🕯️ Light Bearer"),
+        (60, "🏆 Acharya 🎁 Surprise!")
     ]
 
-    next_tier = next(((days, label) for days, label in milestones if streak < days), None)
+    badge_display = ""
+    for day, title in milestones:
+        if streak >= day:
+            badge_display += f"✅ **{title}** — Unlocked\n\n"
+        else:
+            badge_display += f"🔒 {title} — {day - streak} day(s) to go\n\n"
 
-    if next_tier:
-        next_days, next_label = next_tier
-        days_remaining = next_days - streak
-        progress = streak / next_days
-        st.progress(progress, text=f"{streak}/{next_days} — {days_remaining} day(s) to {next_label}")
+    st.markdown(badge_display)
 
-        if next_label == "🏅 Acharya":
-            st.info("🎁 A surprise awaits you when you reach the Acharya level! 30 days Stay consistent 🙌")
-    else:
+    if streak == 60:
         st.balloons()
-        st.success("💥 You've reached the final tier — Acharya! Keep shining!")
-        st.markdown("🎉 **You’ve unlocked the surprise! Check your inbox or await a special message soon!** ✨")
+        st.success("🎊 You've reached the **Acharya Badge**! Your surprise is coming soon...")
 
     # Motivation
     st.subheader("🌱 Why Keep Commenting?")
     st.markdown("""
-    - 🧘 Stay immersed in knowledge  
-    - ✨ Show up daily to build your presence  
-    - 🏅 Earn honours every 3 months  
-    - 🎁 Surprise awaits at Acharya level  
-    - 🔥 Ride the adrenaline rush of a burning streak  
+    - 💡 Keep learning fresh every day  
+    - 🔥 Ride the thrill of a growing streak  
+    - 🏅 Earn visual rewards as you grow  
+    - 🎯 Acharya badge unlocks a special surprise  
     """)
-    st.info("“As Gurudev always says — Be busy in spreading knowledge. Day and night think of how you can reach out to people, and do some good work in life.”")
+    st.info("“As Gurudev always says — Keep spreading knowledge. Let that be your tapasya.”")
 
     # Leaderboard
-    st.subheader("🏆 Top Streaks")
+    st.subheader("🏆 Top 5 Streak Holders")
     leaderboard = list(users_col.find({}, {"_id": 0}))
     leaderboard = sorted(leaderboard, key=lambda x: x['streak'], reverse=True)
     df = pd.DataFrame(leaderboard)[["name", "streak", "total_days"]]
