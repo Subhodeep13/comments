@@ -1,3 +1,4 @@
+
 import streamlit as st
 import datetime
 import pandas as pd
@@ -37,7 +38,6 @@ if submit and user_name:
         }
         users_col.insert_one(user_data)
 
-    # Fix date type
     last = user_data["last_commented"]
     if last and isinstance(last, datetime.date) and not isinstance(last, datetime.datetime):
         last = datetime.datetime.combine(last, datetime.time.min)
@@ -95,10 +95,8 @@ if "user_name" in st.session_state:
     streak = user_data["streak"]
     st.subheader("🔥 Your Streak Progress")
     st.metric("Current Streak", f"{streak} day(s)")
-    st.progress(min(streak / 60, 1.0), text=f"{streak}/60 Days")
 
-    # Badges
-    st.subheader("🎖️ Your Badges")
+    # Milestones
     milestones = [
         (1, "🔰 Seeker"),
         (5, "💪 Consistent"),
@@ -108,18 +106,40 @@ if "user_name" in st.session_state:
         (60, "🏆 Acharya 🎁 Surprise!")
     ]
 
+    # Next milestone
+    next_milestone = None
+    for m in milestones:
+        if streak < m[0]:
+            next_milestone = m
+            break
+
+    if next_milestone:
+        target, badge_name = next_milestone
+        prev = 0
+        for m in reversed(milestones):
+            if m[0] < target and streak >= m[0]:
+                prev = m[0]
+                break
+        steps_done = streak - prev
+        steps_total = target - prev
+        progress = steps_done / steps_total
+        st.progress(progress, text=f"{steps_done}/{steps_total} Days to {badge_name}")
+    else:
+        st.success("🏆 You’ve unlocked all badges!")
+        st.balloons()
+
+    # Badges
+    st.subheader("🎖️ Your Badges")
     badge_display = ""
     for day, title in milestones:
         if streak >= day:
             badge_display += f"✅ **{title}** — Unlocked\n\n"
         else:
             badge_display += f"🔒 {title} — {day - streak} day(s) to go\n\n"
-
     st.markdown(badge_display)
 
-    if streak == 60:
-        st.balloons()
-        st.success("🎊 You've reached the **Acharya Badge**! Your surprise is coming soon...")
+    if streak >= 60:
+        st.success("🎊 You've reached the **Acharya Badge**! Surprise coming soon!")
 
     # Motivation
     st.subheader("🌱 Why Keep Commenting?")
@@ -129,7 +149,7 @@ if "user_name" in st.session_state:
     - 🏅 Earn visual rewards as you grow  
     - 🎯 Acharya badge unlocks a special surprise  
     """)
-    st.info("“As Gurudev always says — Be busy in spreading knowledge. Day and night think of how you can reach out to people, and do some good work in life”")
+    st.info("“As Gurudev always says — Be busy in spreading knowledge. Day and night think of how you can reach out to people, and do some good work in life.”")
 
     # Leaderboard
     st.subheader("🏆 Top 5 Streak Holders")
