@@ -14,7 +14,7 @@ usernames = [u["name"] for u in users_col.find({}, {"name": 1})]
 
 st.title("🔥 Knowledge Streak Tracker")
 
-# Login
+# --- Login/Register ---
 st.header("🔑 Login / Register")
 user_name = st.selectbox("Select your name", [""] + usernames)
 custom_name = st.text_input("Or enter a new name")
@@ -26,8 +26,6 @@ submit = st.button("Login")
 
 if submit and user_name:
     now = datetime.datetime.now()
-
-    # Get or create user
     user_data = users_col.find_one({"name": user_name})
     if not user_data:
         user_data = {
@@ -38,7 +36,7 @@ if submit and user_name:
         }
         users_col.insert_one(user_data)
 
-    # Convert date if needed
+    # Fix old datetime
     last = user_data.get("last_commented")
     if last and isinstance(last, datetime.date) and not isinstance(last, datetime.datetime):
         last = datetime.datetime.combine(last, datetime.time.min)
@@ -53,24 +51,22 @@ if submit and user_name:
     st.session_state.user_data = user_data
     st.success(f"Jai Gurudev, {user_name}! 🙏")
 
-# Show progress bar
+# --- Helper: Progress ---
 def show_progress(user_data):
     st.subheader("🔥 Your Streak Progress")
     st.metric("Current Streak", f"{user_data['streak']} day(s)")
 
-    # Next badge logic
-    badge_days = [7, 21, 45, 60]
-    next_badge = next((d for d in badge_days if d > user_data["streak"]), 60)
-    days_done = user_data["streak"]
-    days_to_next = max(next_badge - days_done, 0)
-    progress = min(days_done / next_badge, 1.0)
-    st.progress(progress, text=f"{days_done} days done, {days_to_next} to next badge 🎖️")
+    next_reward = 90
+    current_in_cycle = user_data['streak'] % next_reward
+    days_to_next = next_reward - current_in_cycle if current_in_cycle != 0 else 0
+    progress = current_in_cycle / next_reward
+    st.progress(progress, text=f"{current_in_cycle} days done, {days_to_next} to next Honour 🎖️")
 
-    if user_data["streak"] == 60:
+    if days_to_next == 0 and user_data['streak'] != 0:
         st.balloons()
-        st.success("🎉 You are an Acharya now! Badge unlocked!")
+        st.success("💥 3-Month Honour Achieved! Keep it going!")
 
-# Show earned & upcoming badges
+# --- Helper: Badges ---
 def show_badges(user_data):
     st.subheader("🏅 Your Badge Journey (Gen Z Edition)")
 
@@ -78,18 +74,23 @@ def show_badges(user_data):
         {"label": "🧃 The Starter", "days": 7},
         {"label": "🔥 The Grinder", "days": 21},
         {"label": "🎧 The Viber", "days": 45},
-        {"label": "🧘 The Acharya", "days": 60},
+        {"label": "🧘 The Acharya", "days": 60, "surprise": True}
     ]
 
-    earned = []
-    upcoming = []
+    earned, upcoming = [], []
 
     for badge in badges:
         if user_data["streak"] >= badge["days"]:
-            earned.append(f"✅ {badge['label']}")
+            line = f"✅ {badge['label']}"
+            if badge.get("surprise"):
+                line += " — 🎁 Surprise Unlocked!"
+            earned.append(line)
         else:
-            remaining = badge["days"] - user_data["streak"]
-            upcoming.append(f"🔒 {badge['label']} — {remaining} day(s) left")
+            left = badge["days"] - user_data["streak"]
+            line = f"🔒 {badge['label']} — {left} day(s) left"
+            if badge.get("surprise"):
+                line += " — 🎁 Surprise Awaits!"
+            upcoming.append(line)
 
     if earned:
         st.markdown("### ✅ **Earned Badges**")
@@ -100,7 +101,7 @@ def show_badges(user_data):
         for b in upcoming:
             st.markdown(f"- {b}")
 
-# Logged in view
+# --- Logged-in Section ---
 if "user_name" in st.session_state:
     user_name = st.session_state.user_name
     user_data = st.session_state.user_data
@@ -112,12 +113,11 @@ if "user_name" in st.session_state:
     if last and isinstance(last, datetime.date) and not isinstance(last, datetime.datetime):
         last = datetime.datetime.combine(last, datetime.time.min)
 
-    # Logic to comment
     can_comment = True
     if last:
         elapsed = (now - last).total_seconds() / 3600
         if elapsed < 7:
-            st.info("🕒 You already logged a comment in the last 7 hours!")
+            st.info("🕒 You've already logged in the last 7 hours!")
             can_comment = False
         elif elapsed > 32:
             st.warning("⛔️ Streak broken after 32 hours.")
@@ -150,9 +150,9 @@ if "user_name" in st.session_state:
     st.subheader("🌱 Why Keep Commenting?")
     st.markdown("""
     - 🧘 Stay immersed in knowledge  
-    - ✨ Show up daily to build your presence  
-    - 🏅 Earn honours with every badge  
-    - 🔥 Ride the adrenaline rush of a burning streak  
+    - ✨ Build your daily sadhana streak  
+    - 🏅 Earn cool Gen Z badges (and a 🎁 surprise at 60!)  
+    - 🔥 Ride the momentum of a burning streak  
     """)
     st.info("“As Gurudev always says — Be busy in spreading knowledge. Day and night think of how you can reach out to people, and do some good work in life.”")
 
